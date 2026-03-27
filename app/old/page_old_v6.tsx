@@ -137,30 +137,20 @@ const VOCAB=[
 
 /* ──────── UTILS ──────── */
 function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b}
-// ★ UID-based storage: each user gets their own data
-let _uid = "local";
-function setStorageUid(uid){_uid=uid||"local"}
-function k(base){return `tg2_${_uid}_${base}`}
-function loadStats(){try{const s=localStorage.getItem(k("stats"));return s?JSON.parse(s):null}catch{return null}}
-function saveStats(s){try{localStorage.setItem(k("stats"),JSON.stringify(s))}catch{}}
-function loadWrong(){try{const w=localStorage.getItem(k("wrong"));return w?JSON.parse(w):[]}catch{return[]}}
-function saveWrong(ids){try{localStorage.setItem(k("wrong"),JSON.stringify(ids))}catch{}}
+function loadStats(){try{const s=localStorage.getItem("tg2_stats");return s?JSON.parse(s):null}catch{return null}}
+function saveStats(s){try{localStorage.setItem("tg2_stats",JSON.stringify(s))}catch{}}
+function loadWrong(){try{const w=localStorage.getItem("tg2_wrong");return w?JSON.parse(w):[]}catch{return[]}}
+function saveWrong(ids){try{localStorage.setItem("tg2_wrong",JSON.stringify(ids))}catch{}}
 function loadDark(){try{return localStorage.getItem("tg2_dark")==="true"}catch{return false}}
 function saveDark(v){try{localStorage.setItem("tg2_dark",String(v))}catch{}}
 function getDateKey(){const d=new Date(Date.now()+9*3600000);return d.toISOString().slice(0,10)}
-function loadStreak(){try{const s=localStorage.getItem(k("streak"));return s?JSON.parse(s):{lastDate:null,count:0}}catch{return{lastDate:null,count:0}}}
-function saveStreak(s){try{localStorage.setItem(k("streak"),JSON.stringify(s))}catch{}}
+function loadStreak(){try{const s=localStorage.getItem("tg2_streak");return s?JSON.parse(s):{lastDate:null,count:0}}catch{return{lastDate:null,count:0}}}
+function saveStreak(s){try{localStorage.setItem("tg2_streak",JSON.stringify(s))}catch{}}
 function updateStreak(streak){
   const today=getDateKey();if(streak.lastDate===today)return streak;
   const d=new Date(Date.now()+9*3600000);d.setDate(d.getDate()-1);const yesterday=d.toISOString().slice(0,10);
   const newCount=streak.lastDate===yesterday?streak.count+1:1;
   const next={lastDate:today,count:newCount};saveStreak(next);return next;
-}
-function loadBadges(){try{const b=localStorage.getItem(k("badges"));return b?JSON.parse(b):[]}catch{return[]}}
-function saveBadges(b){try{localStorage.setItem(k("badges"),JSON.stringify(b))}catch{}}
-// ★ Load all user data at once (called after login)
-function loadAllUserData(){
-  return{stats:loadStats()||{totalAnswered:0,totalCorrect:0,byCategory:{}},wrongIds:loadWrong(),streak:loadStreak(),badges:loadBadges()};
 }
 
 /* ──────── BADGES ──────── */
@@ -192,6 +182,8 @@ function badgeCondition(id,stats,streak){
     default:return false;
   }
 }
+function loadBadges(){try{const b=localStorage.getItem("tg2_badges");return b?JSON.parse(b):[]}catch{return[]}}
+function saveBadges(b){try{localStorage.setItem("tg2_badges",JSON.stringify(b))}catch{}}
 function checkNewBadges(earned,stats,streak){
   const s=new Set(earned);const newB=[];
   BADGES.forEach(b=>{if(!s.has(b.id)&&badgeCondition(b.id,stats,streak)){s.add(b.id);newB.push(b.id)}});
@@ -1048,24 +1040,16 @@ export default function App(){
   const [messages,setMessages]=useState([]);
 
   useEffect(()=>{
-    setDark(loadDark());
-    if(!isConfigured){
-      // Firebase未設定 → オフラインモード
-      setStorageUid("local");
-      const d=loadAllUserData();
-      setStats(d.stats);setWrongIds(d.wrongIds);setStreak(d.streak);setBadges(d.badges);
-      setScreen("home");return;
-    }
+    const s=loadStats();if(s)setStats(s);
+    setWrongIds(loadWrong());setDark(loadDark());setStreak(loadStreak());setBadges(loadBadges());
+    if(!isConfigured){setScreen("home");return}
     const unsub=onAuthStateChanged(auth,(user)=>{
       setFireUser(user);
       if(!user){setScreen("login");return}
-      // ★ UIDでストレージを切り替えてからデータ読み込み
-      setStorageUid(user.uid);
-      const d=loadAllUserData();
-      setStats(d.stats);setWrongIds(d.wrongIds);setStreak(d.streak);setBadges(d.badges);
       getUserProfile(user.uid).then(p=>{
         if(p&&p.facilityCode){
           setProfile(p);
+          // ★ メンターとlearnerで画面を分岐
           setScreen(p.role==="mentor"?"mentor":"home");
         }else{setProfile(p);setScreen("setup")}
       });
@@ -1081,12 +1065,7 @@ export default function App(){
   },[fireUser,profile]);
 
   useEffect(()=>{document.documentElement.classList.toggle("dark",dark);saveDark(dark)},[dark]);
-  useEffect(()=>{window.__skipLogin=()=>{
-    setStorageUid("local");
-    const d=loadAllUserData();
-    setStats(d.stats);setWrongIds(d.wrongIds);setStreak(d.streak);setBadges(d.badges);
-    setScreen("home");
-  };return()=>{delete window.__skipLogin}},[]);
+  useEffect(()=>{window.__skipLogin=()=>setScreen("home");return()=>{delete window.__skipLogin}},[]);
 
   const nav=(s,cat)=>{setScreen(s);if(cat)setQuizCat(cat)};
 
@@ -1107,11 +1086,7 @@ export default function App(){
 
   const handleLogout=async()=>{
     if(!auth)return;
-    await signOut(auth);setFireUser(null);setProfile(null);setMessages([]);
-    // ★ データをリセット（次のユーザーのデータが混ざらないように）
-    setStats({totalAnswered:0,totalCorrect:0,byCategory:{}});setWrongIds([]);setStreak({lastDate:null,count:0});setBadges([]);
-    setStorageUid("local");
-    setScreen("login");
+    await signOut(auth);setFireUser(null);setProfile(null);setMessages([]);setScreen("login");
   };
 
   const doSync=useCallback((nextStats,nextStreak)=>{
