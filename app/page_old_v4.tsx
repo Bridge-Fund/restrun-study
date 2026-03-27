@@ -1,10 +1,7 @@
 // @ts-nocheck
 "use client";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { Shield, ChefHat, Users, Store, ArrowLeft, ArrowRight, Check, X, BookOpen, Trophy, Clock, RotateCcw, Brain, Sparkles, Eye, EyeOff, Calculator, Moon, Sun, RefreshCw, ChevronRight, Flame, BarChart3, CheckCircle2, Circle, Award, LogOut } from "lucide-react";
-import { auth, provider, isConfigured } from "./firebase";
-import { signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
-import { getUserProfile, setUserProfile, getFacility, createFacility, syncLearnerStats } from "./firestore";
+import { Shield, ChefHat, Users, Store, ArrowLeft, ArrowRight, Check, X, BookOpen, Trophy, Clock, RotateCcw, Brain, Sparkles, Eye, EyeOff, Calculator, Moon, Sun, RefreshCw, ChevronRight, Flame, BarChart3, CheckCircle2, Circle, Award } from "lucide-react";
 
 /* ──────── CSS for overlay animation (injected once) ──────── */
 function InjectStyles() {
@@ -233,96 +230,8 @@ function BadgeToast({badgeId,onDismiss}){
   )
 }
 
-/* ──────── LOGIN SCREEN ──────── */
-function LoginScreen({onLogin,loading}){
-  return(
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 flex flex-col items-center justify-center px-6">
-      <div className="w-16 h-16 rounded-2xl bg-amber-500 flex items-center justify-center shadow-lg mb-4"><Sparkles size={32} className="text-white"/></div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">外食業 特定技能2号</h1>
-      <p className="text-sm text-gray-500 mb-1">技能測定試験 学習アプリ</p>
-      <p className="text-xs text-gray-400 mb-8" style={{fontFamily:"'Padauk',sans-serif"}}>စားသောက်ဆိုင်လုပ်ငန်း ကျွမ်းကျင်မှု စာမေးပွဲ</p>
-      <button onClick={onLogin} disabled={loading} className="w-full max-w-xs flex items-center justify-center gap-3 py-3.5 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all active:scale-[0.98] disabled:opacity-50">
-        <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 010-9.18l-7.98-6.19a24.01 24.01 0 000 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-        <span className="text-sm font-medium text-gray-700">{loading?"ログイン中...":"Googleでログイン"}</span>
-      </button>
-      <p className="text-xs text-gray-400 mt-4 text-center">ログインすると、メンターとの連携や<br/>デバイス間の学習データ同期が使えます</p>
-      <button onClick={()=>window.__skipLogin?.()} className="mt-6 text-xs text-gray-400 underline">ログインせずに使う</button>
-    </div>
-  )
-}
-
-/* ──────── SETUP SCREEN ──────── */
-function SetupScreen({user,onComplete}){
-  const [name,setName]=useState("");const [code,setCode]=useState("");const [role,setRole]=useState("learner");
-  const [facilityName,setFacilityName]=useState("");const [mode,setMode]=useState("join");
-  const [error,setError]=useState("");const [loading,setLoading]=useState(false);
-
-  const handleSubmit=async()=>{
-    if(!name.trim())return setError("名前を入力してください");
-    if(!code.trim())return setError("施設コードを入力してください");
-    setLoading(true);setError("");
-    const c=code.trim().toUpperCase();
-    if(mode==="join"){
-      const f=await getFacility(c);
-      if(!f){setLoading(false);return setError("施設コードが見つかりません")}
-    }else{
-      if(!facilityName.trim()){setLoading(false);return setError("施設名を入力してください")}
-      const exists=await getFacility(c);
-      if(exists){setLoading(false);return setError("このコードは既に使われています")}
-      await createFacility(c,user.uid,facilityName.trim());
-    }
-    await onComplete(name.trim(),c,role);
-    setLoading(false);
-  };
-
-  return(
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 flex flex-col items-center px-6 pt-16">
-      <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center shadow-md mb-3"><Sparkles size={24} className="text-white"/></div>
-      <h2 className="text-xl font-bold text-gray-900 mb-1">プロフィール設定</h2>
-      <p className="text-xs text-gray-500 mb-6">{user?.email}</p>
-
-      <div className="w-full max-w-sm space-y-4">
-        <div><label className="text-xs font-medium text-gray-600 mb-1 block">名前</label>
-          <input value={name} onChange={e=>setName(e.target.value)} placeholder="例: ミン" className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"/></div>
-
-        <div><label className="text-xs font-medium text-gray-600 mb-1 block">あなたの役割</label>
-          <div className="flex gap-2">
-            <button onClick={()=>setRole("learner")} className={`flex-1 py-2.5 rounded-xl text-sm font-medium border-2 transition-all ${role==="learner"?"bg-amber-50 border-amber-500 text-amber-700":"bg-white border-gray-200 text-gray-500"}`}>学習者</button>
-            <button onClick={()=>setRole("mentor")} className={`flex-1 py-2.5 rounded-xl text-sm font-medium border-2 transition-all ${role==="mentor"?"bg-blue-50 border-blue-500 text-blue-700":"bg-white border-gray-200 text-gray-500"}`}>メンター</button>
-          </div>
-        </div>
-
-        {role==="mentor"&&(
-          <div><label className="text-xs font-medium text-gray-600 mb-1 block">施設コードの登録方法</label>
-            <div className="flex gap-2">
-              <button onClick={()=>setMode("join")} className={`flex-1 py-2 rounded-lg text-xs font-medium border ${mode==="join"?"bg-gray-800 text-white border-gray-800":"bg-white border-gray-200 text-gray-500"}`}>既存のコードに参加</button>
-              <button onClick={()=>setMode("create")} className={`flex-1 py-2 rounded-lg text-xs font-medium border ${mode==="create"?"bg-gray-800 text-white border-gray-800":"bg-white border-gray-200 text-gray-500"}`}>新しく作成</button>
-            </div>
-          </div>
-        )}
-
-        <div><label className="text-xs font-medium text-gray-600 mb-1 block">施設コード</label>
-          <input value={code} onChange={e=>setCode(e.target.value)} placeholder="例: REST001" className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm uppercase focus:outline-none focus:ring-2 focus:ring-amber-500"/>
-          <p className="text-xs text-gray-400 mt-1">{role==="learner"?"メンターから教えてもらったコードを入力":"施設を識別するコード（英数字）"}</p>
-        </div>
-
-        {mode==="create"&&role==="mentor"&&(
-          <div><label className="text-xs font-medium text-gray-600 mb-1 block">施設名</label>
-            <input value={facilityName} onChange={e=>setFacilityName(e.target.value)} placeholder="例: ABCレストラン" className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"/></div>
-        )}
-
-        {error&&<p className="text-sm text-rose-600 bg-rose-50 px-3 py-2 rounded-lg">{error}</p>}
-
-        <button onClick={handleSubmit} disabled={loading} className="w-full py-3.5 bg-amber-500 text-white rounded-xl text-sm font-medium active:scale-[0.98] disabled:opacity-50">
-          {loading?"設定中...":"設定を完了"}
-        </button>
-      </div>
-    </div>
-  )
-}
-
 /* ──────── HOME ──────── */
-function HomeScreen({onNavigate,stats,dark,setDark,wrongCount,streak,badgeCount,profile,onLogout}){
+function HomeScreen({onNavigate,stats,dark,setDark,wrongCount,streak,badgeCount}){
   const catKeys=Object.keys(CATEGORIES);
   return(
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
@@ -331,19 +240,8 @@ function HomeScreen({onNavigate,stats,dark,setDark,wrongCount,streak,badgeCount,
           <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center shadow-md"><Sparkles size={20} className="text-white"/></div>
           <div><h1 className="text-lg font-bold text-gray-900 dark:text-white">外食業 特定技能2号</h1><p className="text-xs text-gray-500 dark:text-gray-400" style={{fontFamily:"'Padauk',sans-serif"}}>စားသောက်ဆိုင်လုပ်ငန်း ကျွမ်းကျင်မှု အဆင့် ၂</p></div>
         </div>
-        <div className="flex items-center gap-1">
-          <button onClick={()=>setDark(!dark)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">{dark?<Sun size={18} className="text-amber-400"/>:<Moon size={18} className="text-gray-500"/>}</button>
-          {onLogout&&<button onClick={onLogout} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"><LogOut size={16} className="text-gray-400"/></button>}
-        </div>
+        <button onClick={()=>setDark(!dark)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">{dark?<Sun size={18} className="text-amber-400"/>:<Moon size={18} className="text-gray-500"/>}</button>
       </div>
-      {/* Profile bar */}
-      {profile&&(
-        <div className="mx-5 mb-2 px-3 py-2 bg-white/60 dark:bg-gray-800/60 rounded-xl flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center text-white text-xs font-bold">{(profile.name||"?")[0]}</div>
-          <span className="text-sm text-gray-700 dark:text-gray-200 font-medium">{profile.name}</span>
-          {profile.facilityCode&&<span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full ml-auto">{profile.facilityCode}</span>}
-        </div>
-      )}
       {/* ★ STREAK BANNER */}
       {streak.count>=2&&(
         <div className="mx-5 mb-3 px-4 py-2.5 bg-orange-100 dark:bg-orange-900/40 border border-orange-200 dark:border-orange-800 rounded-xl flex items-center gap-3">
@@ -816,71 +714,16 @@ function VocabScreen({onBack}){
 
 /* ──────── APP ──────── */
 export default function App(){
-  const [screen,setScreen]=useState("loading");const [quizCat,setQuizCat]=useState(null);const [dark,setDark]=useState(false);
+  const [screen,setScreen]=useState("home");const [quizCat,setQuizCat]=useState(null);const [dark,setDark]=useState(false);
   const [stats,setStats]=useState({totalAnswered:0,totalCorrect:0,byCategory:{}});const [wrongIds,setWrongIds]=useState([]);
   const [streak,setStreak]=useState({lastDate:null,count:0});
   const [badges,setBadges]=useState([]);
   const [toastQueue,setToastQueue]=useState([]);
-  // Auth state
-  const [fireUser,setFireUser]=useState(null);
-  const [profile,setProfile]=useState(null);
-  const [authLoading,setAuthLoading]=useState(false);
 
-  // Initialize: load local data + check auth
-  useEffect(()=>{
-    const s=loadStats();if(s)setStats(s);
-    setWrongIds(loadWrong());setDark(loadDark());setStreak(loadStreak());setBadges(loadBadges());
-
-    if(!isConfigured){
-      // Firebase未設定 → オフラインモード（ログイン不要）
-      setScreen("home");return;
-    }
-    // Firebase設定済み → 認証状態を監視
-    const unsub=onAuthStateChanged(auth,(user)=>{
-      setFireUser(user);
-      if(!user){setScreen("login");return}
-      // ログイン済み → プロフィール確認
-      getUserProfile(user.uid).then(p=>{
-        if(p&&p.facilityCode){setProfile(p);setScreen("home")}
-        else{setProfile(p);setScreen("setup")}
-      });
-    });
-    return unsub;
-  },[]);
-
+  useEffect(()=>{const s=loadStats();if(s)setStats(s);setWrongIds(loadWrong());setDark(loadDark());setStreak(loadStreak());setBadges(loadBadges())},[]);
   useEffect(()=>{document.documentElement.classList.toggle("dark",dark);saveDark(dark)},[dark]);
 
-  // Skip login (offline mode)
-  useEffect(()=>{window.__skipLogin=()=>setScreen("home");return()=>{delete window.__skipLogin}},[]);
-
   const nav=(s,cat)=>{setScreen(s);if(cat)setQuizCat(cat)};
-
-  const handleLogin=async()=>{
-    if(!auth)return;
-    setAuthLoading(true);
-    try{await signInWithPopup(auth,provider)}
-    catch(e){console.error(e);alert("ログインに失敗しました")}
-    setAuthLoading(false);
-  };
-
-  const handleSetupComplete=async(name,code,role)=>{
-    if(!fireUser)return;
-    const p={name,facilityCode:code,role};
-    await setUserProfile(fireUser.uid,p);
-    setProfile(p);setScreen("home");
-  };
-
-  const handleLogout=async()=>{
-    if(!auth)return;
-    await signOut(auth);setFireUser(null);setProfile(null);setScreen("login");
-  };
-
-  // Cloud sync helper
-  const doSync=useCallback((nextStats,nextStreak)=>{
-    if(fireUser&&profile&&isConfigured){
-      syncLearnerStats(fireUser.uid,nextStats,nextStreak,profile);
-    }
-  },[fireUser,profile]);
 
   const updateStats=useCallback((cat,isCorrect)=>{
     setStats(prev=>{
@@ -888,33 +731,24 @@ export default function App(){
       bc[cat]={answered:bc[cat].answered+1,correct:bc[cat].correct+(isCorrect?1:0)};
       const next={totalAnswered:prev.totalAnswered+1,totalCorrect:prev.totalCorrect+(isCorrect?1:0),byCategory:bc};
       saveStats(next);
+      // Check badges after stats update
       setStreak(prevSt=>{
         const nextSt=updateStreak(prevSt);
         const{all,newOnes}=checkNewBadges(loadBadges(),next,nextSt);
         if(newOnes.length>0){saveBadges(all);setBadges(all);setToastQueue(q=>[...q,...newOnes])}
-        doSync(next,nextSt);
         return nextSt;
       });
       return next;
     });
-  },[doSync]);
+  },[]);
   const addWrong=useCallback((id)=>{setWrongIds(p=>{const n=p.includes(id)?p:[...p,id];saveWrong(n);return n})},[]);
   const removeWrong=useCallback((id)=>{setWrongIds(p=>{const n=p.filter(x=>x!==id);saveWrong(n);return n})},[]);
   const dismissToast=useCallback(()=>{setToastQueue(q=>q.slice(1))},[]);
   const goHome=()=>{setScreen("home");setQuizCat(null)};
 
-  // Loading screen
-  if(screen==="loading")return(
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 flex items-center justify-center">
-      <div className="text-center"><div className="w-14 h-14 rounded-2xl bg-amber-500 flex items-center justify-center shadow-lg mx-auto mb-3"><Sparkles size={28} className="text-white"/></div><p className="text-sm text-gray-500">読み込み中...</p></div>
-    </div>
-  );
-
   return<>
     <InjectStyles/>
     {toastQueue.length>0&&<BadgeToast badgeId={toastQueue[0]} onDismiss={dismissToast}/>}
-    {screen==="login"&&<LoginScreen onLogin={handleLogin} loading={authLoading}/>}
-    {screen==="setup"&&<SetupScreen user={fireUser} onComplete={handleSetupComplete}/>}
     {screen==="quiz"&&<QuizScreen category={quizCat} onBack={goHome} onUpdateStats={updateStats} onWrongAnswer={addWrong} onRemoveWrong={removeWrong}/>}
     {screen==="review"&&<QuizScreen onBack={goHome} onUpdateStats={updateStats} onWrongAnswer={addWrong} onRemoveWrong={removeWrong} reviewIds={wrongIds}/>}
     {screen==="mock"&&<MockExamScreen onBack={goHome} onUpdateStats={updateStats} onWrongAnswer={addWrong}/>}
@@ -922,6 +756,6 @@ export default function App(){
     {screen==="badges"&&<BadgesScreen onBack={goHome} earnedIds={badges}/>}
     {screen==="calc"&&<CalcScreen onBack={goHome}/>}
     {screen==="vocab"&&<VocabScreen onBack={goHome}/>}
-    {screen==="home"&&<HomeScreen onNavigate={nav} stats={stats} dark={dark} setDark={setDark} wrongCount={wrongIds.length} streak={streak} badgeCount={badges.length} profile={profile} onLogout={isConfigured?handleLogout:null}/>}
+    {screen==="home"&&<HomeScreen onNavigate={nav} stats={stats} dark={dark} setDark={setDark} wrongCount={wrongIds.length} streak={streak} badgeCount={badges.length}/>}
   </>
 }
