@@ -1,10 +1,10 @@
 // @ts-nocheck
 "use client";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { Shield, ChefHat, Users, Store, ArrowLeft, ArrowRight, Check, X, BookOpen, Trophy, Clock, RotateCcw, Brain, Sparkles, Eye, EyeOff, Calculator, Moon, Sun, RefreshCw, ChevronRight, Flame, BarChart3, CheckCircle2, Circle, Award, LogOut, Send, MessageCircle } from "lucide-react";
+import { Shield, ChefHat, Users, Store, ArrowLeft, ArrowRight, Check, X, BookOpen, Trophy, Clock, RotateCcw, Brain, Sparkles, Eye, EyeOff, Calculator, Moon, Sun, RefreshCw, ChevronRight, Flame, BarChart3, CheckCircle2, Circle, Award, LogOut } from "lucide-react";
 import { auth, provider, isConfigured } from "./firebase";
 import { signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
-import { getUserProfile, setUserProfile, getFacility, createFacility, syncLearnerStats, subscribeToLearners, sendMessage, subscribeToMessages, markMessageRead } from "./firestore";
+import { getUserProfile, setUserProfile, getFacility, createFacility, syncLearnerStats } from "./firestore";
 
 /* ──────── CSS for overlay animation (injected once) ──────── */
 function InjectStyles() {
@@ -814,219 +814,6 @@ function VocabScreen({onBack}){
   );
 }
 
-/* ──────── RADAR CHART (SVG) ──────── */
-function RadarChart({subjectAccuracy}){
-  const cats=Object.entries(CATEGORIES);const N=cats.length;
-  const cx=120,cy=120,R=90,Rl=108;
-  const angle=(i)=>(Math.PI*2*i/N)-Math.PI/2;
-  const vertex=(i,r)=>({x:cx+r*Math.cos(angle(i)),y:cy+r*Math.sin(angle(i))});
-  const gridLevels=[0.25,0.5,0.65,1.0];
-  const dataPoints=cats.map(([id],i)=>{
-    const v=subjectAccuracy?.[id];const hasData=v&&v.attempts>0;
-    const rate=hasData?v.correct/v.attempts:0.05;
-    return{pt:vertex(i,R*rate),hasData};
-  });
-  const dataPath=dataPoints.map(({pt},i)=>`${i===0?"M":"L"}${pt.x.toFixed(1)},${pt.y.toFixed(1)}`).join(" ")+" Z";
-  return(
-    <svg width="100%" viewBox="0 0 240 240" className="block mx-auto" style={{maxWidth:280}}>
-      {gridLevels.map(level=>{
-        const pts=cats.map((_,i)=>vertex(i,R*level));
-        const path=pts.map((p,i)=>`${i===0?"M":"L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ")+" Z";
-        const is65=level===0.65;
-        return<path key={level} d={path} fill="none" stroke={is65?"#86efac":"#e5e7eb"} strokeWidth={is65?1.5:0.5} strokeDasharray={is65?"3 3":"none"}/>
-      })}
-      {cats.map((_,i)=>{const tip=vertex(i,R);return<line key={i} x1={cx} y1={cy} x2={tip.x.toFixed(1)} y2={tip.y.toFixed(1)} stroke="#e5e7eb" strokeWidth="0.5"/>})}
-      <text x={cx} y={cy-R*0.65-6} textAnchor="middle" style={{fontSize:8,fill:"#86efac",fontWeight:700}}>65%</text>
-      <path d={dataPath} fill="#10b981" fillOpacity="0.2" stroke="#10b981" strokeWidth="1.5"/>
-      {dataPoints.map(({pt,hasData},i)=>hasData?<circle key={i} cx={pt.x.toFixed(1)} cy={pt.y.toFixed(1)} r="3" fill="#10b981" stroke="#fff" strokeWidth="1.5"/>:null)}
-      {cats.map(([id,cat],i)=>{
-        const lp=vertex(i,Rl);const a=angle(i);
-        let anchor="middle";if(Math.cos(a)>0.3)anchor="start";if(Math.cos(a)<-0.3)anchor="end";
-        const v=subjectAccuracy?.[id];const hasData=v&&v.attempts>0;const rate=hasData?Math.round(v.correct/v.attempts*100):null;
-        return(<g key={id}>
-          <text x={lp.x.toFixed(1)} y={lp.y.toFixed(1)} textAnchor={anchor} dominantBaseline="central" style={{fontSize:9,fill:hasData?"#374151":"#d1d5db",fontWeight:hasData?500:400}}>{cat.name_ja}</text>
-          {rate!==null&&<text x={lp.x.toFixed(1)} y={(lp.y+11).toFixed(1)} textAnchor={anchor} dominantBaseline="central" style={{fontSize:8,fill:rate>=65?"#059669":rate>=40?"#d97706":"#dc2626",fontWeight:700}}>{rate}%</text>}
-        </g>);
-      })}
-    </svg>
-  );
-}
-
-/* ──────── LEARNER CARD ──────── */
-function LearnerCard({l,onMessage}){
-  const [expanded,setExpanded]=useState(false);
-  const acc=l.accuracy??0;const streak=l.streak?.count??0;const hasData=(l.totalAnswered??0)>0;
-  const status=!hasData?"none":acc>=65?"good":acc>=40?"mid":"low";
-  const statusColor={good:"text-emerald-600",mid:"text-amber-600",low:"text-rose-600",none:"text-gray-400"};
-  const statusBg={good:"bg-emerald-100 dark:bg-emerald-900",mid:"bg-amber-100 dark:bg-amber-900",low:"bg-rose-100 dark:bg-rose-900",none:"bg-gray-100 dark:bg-gray-800"};
-  return(
-    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm mb-3 overflow-hidden">
-      <div className="p-4 flex items-center gap-3 cursor-pointer" onClick={()=>hasData&&setExpanded(e=>!e)}>
-        <div className={`w-10 h-10 rounded-full ${hasData?"bg-amber-500":"bg-gray-300 dark:bg-gray-600"} flex items-center justify-center text-white font-bold text-sm`}>{(l.name||"?")[0].toUpperCase()}</div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="font-medium text-sm text-gray-800 dark:text-gray-100 truncate">{l.name}</p>
-            {streak>0&&<span className="text-xs text-orange-500">🔥{streak}</span>}
-          </div>
-          <p className="text-xs text-gray-400">{hasData?`${l.totalAnswered}問回答`:"まだ学習していません"}</p>
-        </div>
-        <div className={`px-2.5 py-1 rounded-full text-xs font-bold ${statusBg[status]} ${statusColor[status]}`}>{hasData?`${acc}%`:"未学習"}</div>
-        {hasData&&<span className={`text-xs text-gray-400 transition-transform ${expanded?"rotate-180":""}`}>▼</span>}
-      </div>
-      {/* Progress bar */}
-      {hasData&&(
-        <div className="px-4 pb-2">
-          <div className="relative w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full">
-            <div className={`h-full rounded-full ${acc>=65?"bg-emerald-500":acc>=40?"bg-amber-500":"bg-rose-500"}`} style={{width:`${acc}%`}}/>
-            <div className="absolute top-0 h-full" style={{left:"65%"}}><div className="w-px h-full bg-gray-400 opacity-50"/></div>
-          </div>
-        </div>
-      )}
-      {/* Expanded details */}
-      {expanded&&hasData&&(
-        <div className="px-4 pb-4 border-t border-gray-100 dark:border-gray-700 pt-3">
-          <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2">科目別正答率</p>
-          <RadarChart subjectAccuracy={l.subjectAccuracy}/>
-          {/* Subject breakdown list */}
-          <div className="mt-3 space-y-2">
-            {Object.entries(CATEGORIES).map(([key,cat])=>{
-              const v=l.subjectAccuracy?.[key];const hasD=v&&v.attempts>0;const rate=hasD?Math.round(v.correct/v.attempts*100):null;
-              return(
-                <div key={key} className="flex items-center gap-2 text-xs">
-                  <span className="w-16 text-gray-500 dark:text-gray-400 truncate">{cat.name_ja}</span>
-                  <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                    {rate!==null&&<div className={`h-full rounded-full ${rate>=65?"bg-emerald-500":"bg-rose-400"}`} style={{width:`${rate}%`}}/>}
-                  </div>
-                  <span className={`w-8 text-right font-bold ${rate===null?"text-gray-300":rate>=65?"text-emerald-600":"text-rose-600"}`}>{rate!==null?`${rate}%`:"—"}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-      {/* Message button */}
-      <button onClick={(e)=>{e.stopPropagation();onMessage(l)}} className="w-full py-2.5 border-t border-gray-100 dark:border-gray-700 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex items-center justify-center gap-1.5">
-        <MessageCircle size={14}/>応援メッセージを送る
-      </button>
-    </div>
-  );
-}
-
-/* ──────── MENTOR DASHBOARD ──────── */
-function MentorDashboard({profile,onLogout}){
-  const [learners,setLearners]=useState([]);
-  const [msgTarget,setMsgTarget]=useState(null);
-  const [msgText,setMsgText]=useState("");
-  const [sending,setSending]=useState(false);
-  const [toast,setToast]=useState("");
-
-  useEffect(()=>{
-    if(!profile?.facilityCode)return;
-    const unsub=subscribeToLearners(profile.facilityCode,setLearners);
-    return unsub;
-  },[profile]);
-
-  const handleSend=async()=>{
-    if(!msgText.trim()||!msgTarget)return;
-    setSending(true);
-    const ok=await sendMessage(msgTarget.uid,profile.name,msgText.trim());
-    setSending(false);
-    if(ok){setMsgText("");setToast(`✓ ${msgTarget.name}さんに送信しました`);setMsgTarget(null);setTimeout(()=>setToast(""),3000)}
-    else{setToast("送信に失敗しました");setTimeout(()=>setToast(""),3000)}
-  };
-
-  const totalLearners=learners.length;
-  const activeLearners=learners.filter(l=>(l.totalAnswered??0)>0).length;
-  const avgAcc=activeLearners>0?Math.round(learners.filter(l=>(l.totalAnswered??0)>0).reduce((s,l)=>s+(l.accuracy??0),0)/activeLearners):0;
-
-  return(
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      {/* Header */}
-      <div className="px-5 pt-6 pb-4 bg-blue-600 dark:bg-blue-900">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center"><Users size={20} className="text-white"/></div>
-            <div><h1 className="text-lg font-bold text-white">メンター管理画面</h1><p className="text-xs text-blue-200">{profile?.name} ・ {profile?.facilityCode}</p></div>
-          </div>
-          <button onClick={onLogout} className="p-2 rounded-lg hover:bg-white/10"><LogOut size={16} className="text-white/70"/></button>
-        </div>
-        {/* Summary cards */}
-        <div className="grid grid-cols-3 gap-2">
-          <div className="bg-white/10 rounded-xl p-3 text-center"><p className="text-2xl font-bold text-white">{totalLearners}</p><p className="text-xs text-blue-200">登録者</p></div>
-          <div className="bg-white/10 rounded-xl p-3 text-center"><p className="text-2xl font-bold text-white">{activeLearners}</p><p className="text-xs text-blue-200">学習中</p></div>
-          <div className="bg-white/10 rounded-xl p-3 text-center"><p className={`text-2xl font-bold ${avgAcc>=65?"text-emerald-300":"text-amber-300"}`}>{avgAcc}%</p><p className="text-xs text-blue-200">平均正答率</p></div>
-        </div>
-      </div>
-
-      {/* Toast */}
-      {toast&&<div className="mx-5 mt-3 px-4 py-2.5 bg-emerald-100 dark:bg-emerald-900 border border-emerald-200 dark:border-emerald-700 rounded-xl text-sm text-emerald-700 dark:text-emerald-300 text-center">{toast}</div>}
-
-      {/* Learner list */}
-      <div className="px-5 pt-4 pb-24">
-        <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">学習者一覧（{totalLearners}名）</h2>
-        {learners.length===0?(
-          <div className="text-center py-12">
-            <Users size={48} className="text-gray-300 dark:text-gray-600 mx-auto mb-3"/>
-            <p className="text-sm text-gray-500 dark:text-gray-400">まだ学習者が登録されていません</p>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">施設コード「{profile?.facilityCode}」を学習者に共有してください</p>
-          </div>
-        ):(
-          learners.sort((a,b)=>(b.totalAnswered??0)-(a.totalAnswered??0)).map(l=>(
-            <LearnerCard key={l.uid} l={l} onMessage={setMsgTarget}/>
-          ))
-        )}
-      </div>
-
-      {/* Message modal */}
-      {msgTarget&&(
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md shadow-xl">
-            <div className="p-5 border-b border-gray-100 dark:border-gray-700">
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="font-bold text-gray-800 dark:text-gray-100">応援メッセージ</h3>
-                <button onClick={()=>setMsgTarget(null)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">宛先: {msgTarget.name}さん</p>
-            </div>
-            <div className="p-5">
-              <textarea value={msgText} onChange={e=>setMsgText(e.target.value)} placeholder="頑張っていますね！この調子で続けましょう" rows={3} className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"/>
-              {/* Quick messages */}
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                {["頑張ってね！","いい調子です！","毎日の努力が大切です","合格まであと少し！"].map(t=>(
-                  <button key={t} onClick={()=>setMsgText(t)} className="text-xs px-2.5 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full hover:bg-blue-100">{t}</button>
-                ))}
-              </div>
-              <button onClick={handleSend} disabled={!msgText.trim()||sending} className="w-full mt-4 py-3 bg-blue-600 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50">
-                <Send size={14}/>{sending?"送信中...":"送信する"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ──────── MESSAGE BANNER (for learners) ──────── */
-function MessageBanner({messages,onMarkRead}){
-  const unread=messages.filter(m=>!m.read);
-  if(unread.length===0)return null;
-  return(
-    <div className="mx-5 mb-3">
-      {unread.slice(0,3).map(m=>(
-        <div key={m.id} className="mb-2 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-xl flex items-start gap-3">
-          <MessageCircle size={16} className="text-blue-500 mt-0.5 flex-shrink-0"/>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs text-blue-500 font-medium">{m.fromName}さんからのメッセージ</p>
-            <p className="text-sm text-blue-800 dark:text-blue-200 mt-0.5">{m.text}</p>
-          </div>
-          <button onClick={()=>onMarkRead(m.id)} className="text-xs text-blue-400 hover:text-blue-600 flex-shrink-0">✕</button>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 /* ──────── APP ──────── */
 export default function App(){
   const [screen,setScreen]=useState("loading");const [quizCat,setQuizCat]=useState(null);const [dark,setDark]=useState(false);
@@ -1034,44 +821,45 @@ export default function App(){
   const [streak,setStreak]=useState({lastDate:null,count:0});
   const [badges,setBadges]=useState([]);
   const [toastQueue,setToastQueue]=useState([]);
+  // Auth state
   const [fireUser,setFireUser]=useState(null);
   const [profile,setProfile]=useState(null);
   const [authLoading,setAuthLoading]=useState(false);
-  const [messages,setMessages]=useState([]);
 
+  // Initialize: load local data + check auth
   useEffect(()=>{
     const s=loadStats();if(s)setStats(s);
     setWrongIds(loadWrong());setDark(loadDark());setStreak(loadStreak());setBadges(loadBadges());
-    if(!isConfigured){setScreen("home");return}
+
+    if(!isConfigured){
+      // Firebase未設定 → オフラインモード（ログイン不要）
+      setScreen("home");return;
+    }
+    // Firebase設定済み → 認証状態を監視
     const unsub=onAuthStateChanged(auth,(user)=>{
       setFireUser(user);
       if(!user){setScreen("login");return}
+      // ログイン済み → プロフィール確認
       getUserProfile(user.uid).then(p=>{
-        if(p&&p.facilityCode){
-          setProfile(p);
-          // ★ メンターとlearnerで画面を分岐
-          setScreen(p.role==="mentor"?"mentor":"home");
-        }else{setProfile(p);setScreen("setup")}
+        if(p&&p.facilityCode){setProfile(p);setScreen("home")}
+        else{setProfile(p);setScreen("setup")}
       });
     });
     return unsub;
   },[]);
 
-  // ★ 学習者の場合：メッセージを購読
-  useEffect(()=>{
-    if(!fireUser||!profile||profile.role==="mentor")return;
-    const unsub=subscribeToMessages(fireUser.uid,setMessages);
-    return unsub;
-  },[fireUser,profile]);
-
   useEffect(()=>{document.documentElement.classList.toggle("dark",dark);saveDark(dark)},[dark]);
+
+  // Skip login (offline mode)
   useEffect(()=>{window.__skipLogin=()=>setScreen("home");return()=>{delete window.__skipLogin}},[]);
 
   const nav=(s,cat)=>{setScreen(s);if(cat)setQuizCat(cat)};
 
   const handleLogin=async()=>{
-    if(!auth)return;setAuthLoading(true);
-    try{await signInWithPopup(auth,provider)}catch(e){console.error(e);alert("ログインに失敗しました")}
+    if(!auth)return;
+    setAuthLoading(true);
+    try{await signInWithPopup(auth,provider)}
+    catch(e){console.error(e);alert("ログインに失敗しました")}
     setAuthLoading(false);
   };
 
@@ -1079,18 +867,19 @@ export default function App(){
     if(!fireUser)return;
     const p={name,facilityCode:code,role};
     await setUserProfile(fireUser.uid,p);
-    setProfile(p);
-    // ★ ロールに応じて画面を分岐
-    setScreen(role==="mentor"?"mentor":"home");
+    setProfile(p);setScreen("home");
   };
 
   const handleLogout=async()=>{
     if(!auth)return;
-    await signOut(auth);setFireUser(null);setProfile(null);setMessages([]);setScreen("login");
+    await signOut(auth);setFireUser(null);setProfile(null);setScreen("login");
   };
 
+  // Cloud sync helper
   const doSync=useCallback((nextStats,nextStreak)=>{
-    if(fireUser&&profile&&isConfigured){syncLearnerStats(fireUser.uid,nextStats,nextStreak,profile)}
+    if(fireUser&&profile&&isConfigured){
+      syncLearnerStats(fireUser.uid,nextStats,nextStreak,profile);
+    }
   },[fireUser,profile]);
 
   const updateStats=useCallback((cat,isCorrect)=>{
@@ -1103,7 +892,8 @@ export default function App(){
         const nextSt=updateStreak(prevSt);
         const{all,newOnes}=checkNewBadges(loadBadges(),next,nextSt);
         if(newOnes.length>0){saveBadges(all);setBadges(all);setToastQueue(q=>[...q,...newOnes])}
-        doSync(next,nextSt);return nextSt;
+        doSync(next,nextSt);
+        return nextSt;
       });
       return next;
     });
@@ -1111,14 +901,9 @@ export default function App(){
   const addWrong=useCallback((id)=>{setWrongIds(p=>{const n=p.includes(id)?p:[...p,id];saveWrong(n);return n})},[]);
   const removeWrong=useCallback((id)=>{setWrongIds(p=>{const n=p.filter(x=>x!==id);saveWrong(n);return n})},[]);
   const dismissToast=useCallback(()=>{setToastQueue(q=>q.slice(1))},[]);
-  const goHome=()=>{setScreen(profile?.role==="mentor"?"mentor":"home");setQuizCat(null)};
+  const goHome=()=>{setScreen("home");setQuizCat(null)};
 
-  const handleMarkRead=useCallback((msgId)=>{
-    if(!fireUser)return;
-    markMessageRead(fireUser.uid,msgId);
-    setMessages(prev=>prev.map(m=>m.id===msgId?{...m,read:true}:m));
-  },[fireUser]);
-
+  // Loading screen
   if(screen==="loading")return(
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 flex items-center justify-center">
       <div className="text-center"><div className="w-14 h-14 rounded-2xl bg-amber-500 flex items-center justify-center shadow-lg mx-auto mb-3"><Sparkles size={28} className="text-white"/></div><p className="text-sm text-gray-500">読み込み中...</p></div>
@@ -1130,7 +915,6 @@ export default function App(){
     {toastQueue.length>0&&<BadgeToast badgeId={toastQueue[0]} onDismiss={dismissToast}/>}
     {screen==="login"&&<LoginScreen onLogin={handleLogin} loading={authLoading}/>}
     {screen==="setup"&&<SetupScreen user={fireUser} onComplete={handleSetupComplete}/>}
-    {screen==="mentor"&&<MentorDashboard profile={profile} onLogout={handleLogout}/>}
     {screen==="quiz"&&<QuizScreen category={quizCat} onBack={goHome} onUpdateStats={updateStats} onWrongAnswer={addWrong} onRemoveWrong={removeWrong}/>}
     {screen==="review"&&<QuizScreen onBack={goHome} onUpdateStats={updateStats} onWrongAnswer={addWrong} onRemoveWrong={removeWrong} reviewIds={wrongIds}/>}
     {screen==="mock"&&<MockExamScreen onBack={goHome} onUpdateStats={updateStats} onWrongAnswer={addWrong}/>}
@@ -1138,6 +922,6 @@ export default function App(){
     {screen==="badges"&&<BadgesScreen onBack={goHome} earnedIds={badges}/>}
     {screen==="calc"&&<CalcScreen onBack={goHome}/>}
     {screen==="vocab"&&<VocabScreen onBack={goHome}/>}
-    {screen==="home"&&<><MessageBanner messages={messages} onMarkRead={handleMarkRead}/><HomeScreen onNavigate={nav} stats={stats} dark={dark} setDark={setDark} wrongCount={wrongIds.length} streak={streak} badgeCount={badges.length} profile={profile} onLogout={isConfigured?handleLogout:null}/></>}
+    {screen==="home"&&<HomeScreen onNavigate={nav} stats={stats} dark={dark} setDark={setDark} wrongCount={wrongIds.length} streak={streak} badgeCount={badges.length} profile={profile} onLogout={isConfigured?handleLogout:null}/>}
   </>
 }
