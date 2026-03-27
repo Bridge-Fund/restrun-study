@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { Shield, ChefHat, Users, Store, ArrowLeft, ArrowRight, Check, X, BookOpen, Trophy, Clock, RotateCcw, Brain, Sparkles, Eye, EyeOff, Calculator, Moon, Sun, RefreshCw, ChevronRight, Flame, BarChart3, CheckCircle2, Circle } from "lucide-react";
+import { Shield, ChefHat, Users, Store, ArrowLeft, ArrowRight, Check, X, BookOpen, Trophy, Clock, RotateCcw, Brain, Sparkles, Eye, EyeOff, Calculator, Moon, Sun, RefreshCw, ChevronRight } from "lucide-react";
 
 /* ──────── CSS for overlay animation (injected once) ──────── */
 function InjectStyles() {
@@ -140,15 +140,6 @@ function loadWrong(){try{const w=localStorage.getItem("tg2_wrong");return w?JSON
 function saveWrong(ids){try{localStorage.setItem("tg2_wrong",JSON.stringify(ids))}catch{}}
 function loadDark(){try{return localStorage.getItem("tg2_dark")==="true"}catch{return false}}
 function saveDark(v){try{localStorage.setItem("tg2_dark",String(v))}catch{}}
-function getDateKey(){const d=new Date(Date.now()+9*3600000);return d.toISOString().slice(0,10)}
-function loadStreak(){try{const s=localStorage.getItem("tg2_streak");return s?JSON.parse(s):{lastDate:null,count:0}}catch{return{lastDate:null,count:0}}}
-function saveStreak(s){try{localStorage.setItem("tg2_streak",JSON.stringify(s))}catch{}}
-function updateStreak(streak){
-  const today=getDateKey();if(streak.lastDate===today)return streak;
-  const d=new Date(Date.now()+9*3600000);d.setDate(d.getDate()-1);const yesterday=d.toISOString().slice(0,10);
-  const newCount=streak.lastDate===yesterday?streak.count+1:1;
-  const next={lastDate:today,count:newCount};saveStreak(next);return next;
-}
 
 /* ──────── SHARED COMPONENTS ──────── */
 function ProgressBar({value,max,color="bg-amber-500"}){const p=max>0?(value/max)*100:0;return<div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden"><div className={`h-full ${color} rounded-full transition-all duration-500`} style={{width:`${p}%`}}/></div>}
@@ -181,7 +172,7 @@ function AnswerOverlay({type}){
 }
 
 /* ──────── HOME ──────── */
-function HomeScreen({onNavigate,stats,dark,setDark,wrongCount,streak}){
+function HomeScreen({onNavigate,stats,dark,setDark,wrongCount}){
   const catKeys=Object.keys(CATEGORIES);
   return(
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
@@ -192,13 +183,6 @@ function HomeScreen({onNavigate,stats,dark,setDark,wrongCount,streak}){
         </div>
         <button onClick={()=>setDark(!dark)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">{dark?<Sun size={18} className="text-amber-400"/>:<Moon size={18} className="text-gray-500"/>}</button>
       </div>
-      {/* ★ STREAK BANNER */}
-      {streak.count>=2&&(
-        <div className="mx-5 mb-3 px-4 py-2.5 bg-orange-100 dark:bg-orange-900/40 border border-orange-200 dark:border-orange-800 rounded-xl flex items-center gap-3">
-          <div className="flex items-center gap-1"><Flame size={22} className="text-orange-500"/><span className="text-xl font-bold text-orange-600 dark:text-orange-400">{streak.count}</span></div>
-          <div><p className="text-sm font-medium text-orange-700 dark:text-orange-300">{streak.count}日連続で学習中！</p><p className="text-xs text-orange-500 dark:text-orange-400" style={{fontFamily:"'Padauk',sans-serif"}}>ဆက်တိုက် {streak.count} ရက် လေ့လာနေပါတယ်!</p></div>
-        </div>
-      )}
       {stats.totalAnswered>0&&(
         <div className="mx-5 mb-3 p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between mb-1"><span className="text-sm font-medium text-gray-700 dark:text-gray-200">学習の進捗</span><span className="text-sm font-bold text-amber-600 dark:text-amber-400">{stats.totalCorrect}/{stats.totalAnswered}</span></div>
@@ -216,7 +200,6 @@ function HomeScreen({onNavigate,stats,dark,setDark,wrongCount,streak}){
       <div className="px-5 flex flex-col gap-2.5 pb-20">
         {wrongCount>0&&<button onClick={()=>onNavigate("review")} className="flex items-center gap-4 p-4 bg-rose-50 dark:bg-rose-950 rounded-2xl border border-rose-200 dark:border-rose-800 shadow-sm active:scale-[0.98]"><div className="w-11 h-11 rounded-xl bg-rose-500 flex items-center justify-center shadow-sm"><RefreshCw size={20} className="text-white"/></div><div className="text-left flex-1"><p className="font-bold text-sm text-rose-700 dark:text-rose-300">間違えた問題を復習</p><p className="text-xs text-rose-500">{wrongCount}問</p></div><ChevronRight size={16} className="text-rose-300"/></button>}
         <NavBtn icon={<Clock size={20} className="text-white"/>} bg="bg-emerald-500" title="模擬試験モード" sub="本番形式・70分タイマー" onClick={()=>onNavigate("mock")}/>
-        <NavBtn icon={<BarChart3 size={20} className="text-white"/>} bg="bg-blue-500" title="進捗・成績" sub="分野別の正答率・合格条件を確認" onClick={()=>onNavigate("progress")}/>
         <NavBtn icon={<Calculator size={20} className="text-white"/>} bg="bg-indigo-500" title="計算練習" sub="原価率・損益分岐点・歩留まり" onClick={()=>onNavigate("calc")}/>
         <NavBtn icon={<BookOpen size={20} className="text-white"/>} bg="bg-teal-500" title="単語帳" sub={`日本語↔ミャンマー語 (${VOCAB.length}語)`} onClick={()=>onNavigate("vocab")}/>
       </div>
@@ -455,106 +438,6 @@ function MockExamScreen({onBack,onUpdateStats,onWrongAnswer}){
   );
 }
 
-/* ──────── ★ NEW: PROGRESS SCREEN ──────── */
-function ProgressScreen({onBack,stats,wrongCount}){
-  const answered=stats.totalAnswered;const correct=stats.totalCorrect;
-  const pct=answered>0?Math.round(correct/answered*100):0;
-  const catKeys=Object.keys(CATEGORIES);
-  const catStats=catKeys.map(key=>{
-    const a=stats.byCategory[key]?.answered||0;const c=stats.byCategory[key]?.correct||0;
-    const r=a>0?Math.round(c/a*100):null;const total=QUESTIONS.filter(q=>q.category===key).length;
-    return{key,a,c,r,total,...CATEGORIES[key]};
-  });
-  const passedCats=catStats.filter(s=>s.r!==null&&s.r>=PASS_LINE).length;
-  const allCatsPassed=passedCats>=catKeys.length;
-  const overallPassed=answered>0&&pct>=PASS_LINE;
-
-  return(
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <HeaderBar title="進捗・成績" onBack={onBack}/>
-      <div className="px-5 pt-5 pb-24">
-        {/* Overall accuracy */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-100 dark:border-gray-700 mb-4">
-          <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-1">全体の正答率</h3>
-          {answered===0?<p className="text-sm text-gray-400 mt-2">まだ問題を解いていません</p>:(
-            <>
-              <PassBar pct={pct}/>
-              <div className="flex justify-between items-center mt-4 text-sm">
-                <span className="text-gray-500 dark:text-gray-400">{answered}問回答（{correct}問正解）</span>
-                <span className={`font-bold ${pct>=PASS_LINE?"text-emerald-600 dark:text-emerald-400":"text-rose-600 dark:text-rose-400"}`}>{pct>=PASS_LINE?"合格ライン達成":"合格ラインまであと"+(PASS_LINE-pct)+"%"}</span>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Per-subject bars */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-100 dark:border-gray-700 mb-4">
-          <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4">分野別の正答率</h3>
-          {catStats.map(s=>{const Icon=s.icon;return(
-            <div key={s.key} className="mb-4 last:mb-0">
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-2">
-                  <div className={`w-6 h-6 rounded-md ${s.color} flex items-center justify-center`}><Icon size={13} className="text-white"/></div>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{s.name_ja}</span>
-                  <span className="text-xs text-gray-400">({s.total}問)</span>
-                </div>
-                {s.r!==null?<span className={`text-sm font-bold ${s.r>=PASS_LINE?"text-emerald-600 dark:text-emerald-400":"text-rose-600 dark:text-rose-400"}`}>{s.r}%</span>
-                :<span className="text-xs text-gray-400">未回答</span>}
-              </div>
-              <div className="relative w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full">
-                {s.r!==null&&<div className={`h-full rounded-full transition-all duration-500 ${s.r>=PASS_LINE?"bg-emerald-500":"bg-rose-400"}`} style={{width:`${s.r}%`}}/>}
-                <div className="absolute top-0 h-full" style={{left:`${PASS_LINE}%`}}><div className="w-px h-full bg-gray-500 dark:bg-gray-400 opacity-50"/></div>
-              </div>
-              {s.a>0&&<p className="text-xs text-gray-400 mt-1">{s.c}/{s.a} 正解・配点{s.points}点</p>}
-            </div>
-          )})}
-        </div>
-
-        {/* Pass conditions checklist */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-100 dark:border-gray-700 mb-4">
-          <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">合格条件チェック</h3>
-          <div className="flex flex-col gap-3">
-            <div className="flex items-start gap-3">
-              {overallPassed?<CheckCircle2 size={20} className="text-emerald-500 flex-shrink-0 mt-0.5"/>:<Circle size={20} className="text-gray-300 dark:text-gray-600 flex-shrink-0 mt-0.5"/>}
-              <div>
-                <p className={`text-sm font-medium ${overallPassed?"text-emerald-700 dark:text-emerald-400":"text-gray-600 dark:text-gray-300"}`}>全体正答率が{PASS_LINE}%以上</p>
-                <p className="text-xs text-gray-400">{answered>0?`現在 ${pct}%`:"未回答"}</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              {allCatsPassed?<CheckCircle2 size={20} className="text-emerald-500 flex-shrink-0 mt-0.5"/>:<Circle size={20} className="text-gray-300 dark:text-gray-600 flex-shrink-0 mt-0.5"/>}
-              <div>
-                <p className={`text-sm font-medium ${allCatsPassed?"text-emerald-700 dark:text-emerald-400":"text-gray-600 dark:text-gray-300"}`}>全4分野で{PASS_LINE}%以上</p>
-                <p className="text-xs text-gray-400">現在 {passedCats}/{catKeys.length} 分野達成</p>
-              </div>
-            </div>
-          </div>
-          {overallPassed&&allCatsPassed?(
-            <div className="mt-4 p-3 bg-emerald-50 dark:bg-emerald-900/30 rounded-xl border border-emerald-200 dark:border-emerald-700 text-center">
-              <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">🎉 すべての合格条件を満たしています！</p>
-              <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5" style={{fontFamily:"'Padauk',sans-serif"}}>အားလုံးအောင်မြင်ပါသည်!</p>
-            </div>
-          ):(
-            <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/30 rounded-xl border border-amber-200 dark:border-amber-700">
-              <p className="text-xs text-amber-700 dark:text-amber-300">本番の試験は250点満点中{PASS_LINE}%（163点）以上で合格です。すべての分野をバランスよく学習しましょう。</p>
-            </div>
-          )}
-        </div>
-
-        {/* Weak questions count */}
-        {wrongCount>0&&(
-          <div className="bg-rose-50 dark:bg-rose-900/30 rounded-2xl p-4 border border-rose-200 dark:border-rose-700">
-            <div className="flex items-center gap-3">
-              <RefreshCw size={18} className="text-rose-500"/>
-              <div><p className="text-sm font-medium text-rose-700 dark:text-rose-300">間違えた問題: {wrongCount}問</p><p className="text-xs text-rose-500 dark:text-rose-400">ホームから「間違えた問題を復習」で復習できます</p></div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 /* ──────── CALC SCREEN ──────── */
 function CalcScreen({onBack}){
   const [idx,setIdx]=useState(0);const [show,setShow]=useState(false);const ex=CALC_EXERCISES[idx];
@@ -616,16 +499,14 @@ function VocabScreen({onBack}){
 export default function App(){
   const [screen,setScreen]=useState("home");const [quizCat,setQuizCat]=useState(null);const [dark,setDark]=useState(false);
   const [stats,setStats]=useState({totalAnswered:0,totalCorrect:0,byCategory:{}});const [wrongIds,setWrongIds]=useState([]);
-  const [streak,setStreak]=useState({lastDate:null,count:0});
 
-  useEffect(()=>{const s=loadStats();if(s)setStats(s);setWrongIds(loadWrong());setDark(loadDark());const st=loadStreak();setStreak(st)},[]);
+  useEffect(()=>{const s=loadStats();if(s)setStats(s);setWrongIds(loadWrong());setDark(loadDark())},[]);
   useEffect(()=>{document.documentElement.classList.toggle("dark",dark);saveDark(dark)},[dark]);
 
   const nav=(s,cat)=>{setScreen(s);if(cat)setQuizCat(cat)};
 
   const updateStats=useCallback((cat,isCorrect)=>{
-    setStats(prev=>{const bc={...prev.byCategory};if(!bc[cat])bc[cat]={answered:0,correct:0};bc[cat]={answered:bc[cat].answered+1,correct:bc[cat].correct+(isCorrect?1:0)};const next={totalAnswered:prev.totalAnswered+1,totalCorrect:prev.totalCorrect+(isCorrect?1:0),byCategory:bc};saveStats(next);return next});
-    setStreak(prev=>{const next=updateStreak(prev);return next});
+    setStats(prev=>{const bc={...prev.byCategory};if(!bc[cat])bc[cat]={answered:0,correct:0};bc[cat]={answered:bc[cat].answered+1,correct:bc[cat].correct+(isCorrect?1:0)};const next={totalAnswered:prev.totalAnswered+1,totalCorrect:prev.totalCorrect+(isCorrect?1:0),byCategory:bc};saveStats(next);return next})
   },[]);
   const addWrong=useCallback((id)=>{setWrongIds(p=>{const n=p.includes(id)?p:[...p,id];saveWrong(n);return n})},[]);
   const removeWrong=useCallback((id)=>{setWrongIds(p=>{const n=p.filter(x=>x!==id);saveWrong(n);return n})},[]);
@@ -636,9 +517,8 @@ export default function App(){
     {screen==="quiz"&&<QuizScreen category={quizCat} onBack={goHome} onUpdateStats={updateStats} onWrongAnswer={addWrong} onRemoveWrong={removeWrong}/>}
     {screen==="review"&&<QuizScreen onBack={goHome} onUpdateStats={updateStats} onWrongAnswer={addWrong} onRemoveWrong={removeWrong} reviewIds={wrongIds}/>}
     {screen==="mock"&&<MockExamScreen onBack={goHome} onUpdateStats={updateStats} onWrongAnswer={addWrong}/>}
-    {screen==="progress"&&<ProgressScreen onBack={goHome} stats={stats} wrongCount={wrongIds.length}/>}
     {screen==="calc"&&<CalcScreen onBack={goHome}/>}
     {screen==="vocab"&&<VocabScreen onBack={goHome}/>}
-    {screen==="home"&&<HomeScreen onNavigate={nav} stats={stats} dark={dark} setDark={setDark} wrongCount={wrongIds.length} streak={streak}/>}
+    {screen==="home"&&<HomeScreen onNavigate={nav} stats={stats} dark={dark} setDark={setDark} wrongCount={wrongIds.length}/>}
   </>
 }
