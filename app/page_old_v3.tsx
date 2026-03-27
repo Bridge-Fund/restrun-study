@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { Shield, ChefHat, Users, Store, ArrowLeft, ArrowRight, Check, X, BookOpen, Trophy, Clock, RotateCcw, Brain, Sparkles, Eye, EyeOff, Calculator, Moon, Sun, RefreshCw, ChevronRight, Flame, BarChart3, CheckCircle2, Circle, Award } from "lucide-react";
+import { Shield, ChefHat, Users, Store, ArrowLeft, ArrowRight, Check, X, BookOpen, Trophy, Clock, RotateCcw, Brain, Sparkles, Eye, EyeOff, Calculator, Moon, Sun, RefreshCw, ChevronRight, Flame, BarChart3, CheckCircle2, Circle } from "lucide-react";
 
 /* ──────── CSS for overlay animation (injected once) ──────── */
 function InjectStyles() {
@@ -150,43 +150,6 @@ function updateStreak(streak){
   const next={lastDate:today,count:newCount};saveStreak(next);return next;
 }
 
-/* ──────── BADGES ──────── */
-const BADGES=[
-  {id:"first_answer",icon:"🌱",name:"最初の一歩",desc:"初めての問題に回答した"},
-  {id:"correct_10",icon:"⭐",name:"10問正解",desc:"正解数が10に到達"},
-  {id:"correct_50",icon:"🌟",name:"50問正解",desc:"正解数が50に到達"},
-  {id:"correct_100",icon:"💫",name:"100問正解",desc:"正解数が100に到達"},
-  {id:"answered_50",icon:"📚",name:"50問挑戦",desc:"50問に回答した"},
-  {id:"answered_200",icon:"📖",name:"200問挑戦",desc:"200問に回答した"},
-  {id:"streak_3",icon:"🔥",name:"3日連続",desc:"3日連続で学習した"},
-  {id:"streak_7",icon:"🔥",name:"7日連続！",desc:"7日連続で学習した"},
-  {id:"accuracy_65",icon:"🎯",name:"合格ライン",desc:"正答率65%以上（20問以上回答）"},
-  {id:"all_cats",icon:"🗺️",name:"全分野制覇",desc:"全4分野に1問以上回答した"},
-];
-function badgeCondition(id,stats,streak){
-  const s=stats;const st=streak;
-  switch(id){
-    case"first_answer":return s.totalAnswered>=1;
-    case"correct_10":return s.totalCorrect>=10;
-    case"correct_50":return s.totalCorrect>=50;
-    case"correct_100":return s.totalCorrect>=100;
-    case"answered_50":return s.totalAnswered>=50;
-    case"answered_200":return s.totalAnswered>=200;
-    case"streak_3":return(st?.count??0)>=3;
-    case"streak_7":return(st?.count??0)>=7;
-    case"accuracy_65":return s.totalAnswered>=20&&(s.totalCorrect/s.totalAnswered)>=0.65;
-    case"all_cats":return Object.keys(s.byCategory||{}).filter(k=>(s.byCategory[k]?.answered||0)>0).length>=4;
-    default:return false;
-  }
-}
-function loadBadges(){try{const b=localStorage.getItem("tg2_badges");return b?JSON.parse(b):[]}catch{return[]}}
-function saveBadges(b){try{localStorage.setItem("tg2_badges",JSON.stringify(b))}catch{}}
-function checkNewBadges(earned,stats,streak){
-  const s=new Set(earned);const newB=[];
-  BADGES.forEach(b=>{if(!s.has(b.id)&&badgeCondition(b.id,stats,streak)){s.add(b.id);newB.push(b.id)}});
-  return{all:[...s],newOnes:newB};
-}
-
 /* ──────── SHARED COMPONENTS ──────── */
 function ProgressBar({value,max,color="bg-amber-500"}){const p=max>0?(value/max)*100:0;return<div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden"><div className={`h-full ${color} rounded-full transition-all duration-500`} style={{width:`${p}%`}}/></div>}
 
@@ -217,21 +180,8 @@ function AnswerOverlay({type}){
   )
 }
 
-/* ──────── ★ BADGE TOAST ──────── */
-function BadgeToast({badgeId,onDismiss}){
-  const badge=BADGES.find(b=>b.id===badgeId);
-  useEffect(()=>{const t=setTimeout(onDismiss,4000);return()=>clearTimeout(t)},[badgeId]);
-  if(!badge)return null;
-  return(
-    <div onClick={onDismiss} className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-amber-500 text-white px-5 py-3 rounded-2xl shadow-lg flex items-center gap-3 cursor-pointer" style={{animation:"tg2-pop 0.4s ease-out"}}>
-      <span className="text-3xl">{badge.icon}</span>
-      <div><p className="font-bold text-sm">バッジ獲得！</p><p className="text-xs opacity-90">{badge.name} — {badge.desc}</p></div>
-    </div>
-  )
-}
-
 /* ──────── HOME ──────── */
-function HomeScreen({onNavigate,stats,dark,setDark,wrongCount,streak,badgeCount}){
+function HomeScreen({onNavigate,stats,dark,setDark,wrongCount,streak}){
   const catKeys=Object.keys(CATEGORIES);
   return(
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
@@ -269,7 +219,6 @@ function HomeScreen({onNavigate,stats,dark,setDark,wrongCount,streak,badgeCount}
         <NavBtn icon={<BarChart3 size={20} className="text-white"/>} bg="bg-blue-500" title="進捗・成績" sub="分野別の正答率・合格条件を確認" onClick={()=>onNavigate("progress")}/>
         <NavBtn icon={<Calculator size={20} className="text-white"/>} bg="bg-indigo-500" title="計算練習" sub="原価率・損益分岐点・歩留まり" onClick={()=>onNavigate("calc")}/>
         <NavBtn icon={<BookOpen size={20} className="text-white"/>} bg="bg-teal-500" title="単語帳" sub={`日本語↔ミャンマー語 (${VOCAB.length}語)`} onClick={()=>onNavigate("vocab")}/>
-        <NavBtn icon={<Award size={20} className="text-white"/>} bg="bg-amber-500" title="バッジ" sub={`${badgeCount}/${BADGES.length} 獲得`} onClick={()=>onNavigate("badges")}/>
       </div>
     </div>
   )
@@ -606,55 +555,6 @@ function ProgressScreen({onBack,stats,wrongCount}){
   );
 }
 
-/* ──────── ★ BADGES SCREEN ──────── */
-function BadgesScreen({onBack,earnedIds}){
-  const earned=new Set(earnedIds);
-  const earnedBadges=BADGES.filter(b=>earned.has(b.id));
-  const lockedBadges=BADGES.filter(b=>!earned.has(b.id));
-  return(
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <HeaderBar title={`バッジ (${earnedBadges.length}/${BADGES.length})`} onBack={onBack}/>
-      <div className="px-5 pt-5 pb-24">
-        {earnedBadges.length>0&&(
-          <div className="mb-6">
-            <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">獲得済み</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {earnedBadges.map(b=>(
-                <div key={b.id} className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-amber-200 dark:border-amber-700 shadow-sm text-center">
-                  <div className="text-3xl mb-2">{b.icon}</div>
-                  <p className="font-bold text-sm text-gray-800 dark:text-gray-100">{b.name}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{b.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {lockedBadges.length>0&&(
-          <div>
-            <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">未獲得</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {lockedBadges.map(b=>(
-                <div key={b.id} className="bg-gray-100 dark:bg-gray-800 rounded-2xl p-4 border border-gray-200 dark:border-gray-700 text-center opacity-60">
-                  <div className="text-3xl mb-2 grayscale">🔒</div>
-                  <p className="font-bold text-sm text-gray-500 dark:text-gray-400">{b.name}</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{b.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {earnedBadges.length===0&&(
-          <div className="text-center pt-12">
-            <div className="text-5xl mb-4">🏅</div>
-            <p className="text-gray-500 dark:text-gray-400 text-sm">まだバッジを獲得していません</p>
-            <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">問題を解くとバッジがもらえます！</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 /* ──────── CALC SCREEN ──────── */
 function CalcScreen({onBack}){
   const [idx,setIdx]=useState(0);const [show,setShow]=useState(false);const ex=CALC_EXERCISES[idx];
@@ -717,45 +617,28 @@ export default function App(){
   const [screen,setScreen]=useState("home");const [quizCat,setQuizCat]=useState(null);const [dark,setDark]=useState(false);
   const [stats,setStats]=useState({totalAnswered:0,totalCorrect:0,byCategory:{}});const [wrongIds,setWrongIds]=useState([]);
   const [streak,setStreak]=useState({lastDate:null,count:0});
-  const [badges,setBadges]=useState([]);
-  const [toastQueue,setToastQueue]=useState([]);
 
-  useEffect(()=>{const s=loadStats();if(s)setStats(s);setWrongIds(loadWrong());setDark(loadDark());setStreak(loadStreak());setBadges(loadBadges())},[]);
+  useEffect(()=>{const s=loadStats();if(s)setStats(s);setWrongIds(loadWrong());setDark(loadDark());const st=loadStreak();setStreak(st)},[]);
   useEffect(()=>{document.documentElement.classList.toggle("dark",dark);saveDark(dark)},[dark]);
 
   const nav=(s,cat)=>{setScreen(s);if(cat)setQuizCat(cat)};
 
   const updateStats=useCallback((cat,isCorrect)=>{
-    setStats(prev=>{
-      const bc={...prev.byCategory};if(!bc[cat])bc[cat]={answered:0,correct:0};
-      bc[cat]={answered:bc[cat].answered+1,correct:bc[cat].correct+(isCorrect?1:0)};
-      const next={totalAnswered:prev.totalAnswered+1,totalCorrect:prev.totalCorrect+(isCorrect?1:0),byCategory:bc};
-      saveStats(next);
-      // Check badges after stats update
-      setStreak(prevSt=>{
-        const nextSt=updateStreak(prevSt);
-        const{all,newOnes}=checkNewBadges(loadBadges(),next,nextSt);
-        if(newOnes.length>0){saveBadges(all);setBadges(all);setToastQueue(q=>[...q,...newOnes])}
-        return nextSt;
-      });
-      return next;
-    });
+    setStats(prev=>{const bc={...prev.byCategory};if(!bc[cat])bc[cat]={answered:0,correct:0};bc[cat]={answered:bc[cat].answered+1,correct:bc[cat].correct+(isCorrect?1:0)};const next={totalAnswered:prev.totalAnswered+1,totalCorrect:prev.totalCorrect+(isCorrect?1:0),byCategory:bc};saveStats(next);return next});
+    setStreak(prev=>{const next=updateStreak(prev);return next});
   },[]);
   const addWrong=useCallback((id)=>{setWrongIds(p=>{const n=p.includes(id)?p:[...p,id];saveWrong(n);return n})},[]);
   const removeWrong=useCallback((id)=>{setWrongIds(p=>{const n=p.filter(x=>x!==id);saveWrong(n);return n})},[]);
-  const dismissToast=useCallback(()=>{setToastQueue(q=>q.slice(1))},[]);
   const goHome=()=>{setScreen("home");setQuizCat(null)};
 
   return<>
     <InjectStyles/>
-    {toastQueue.length>0&&<BadgeToast badgeId={toastQueue[0]} onDismiss={dismissToast}/>}
     {screen==="quiz"&&<QuizScreen category={quizCat} onBack={goHome} onUpdateStats={updateStats} onWrongAnswer={addWrong} onRemoveWrong={removeWrong}/>}
     {screen==="review"&&<QuizScreen onBack={goHome} onUpdateStats={updateStats} onWrongAnswer={addWrong} onRemoveWrong={removeWrong} reviewIds={wrongIds}/>}
     {screen==="mock"&&<MockExamScreen onBack={goHome} onUpdateStats={updateStats} onWrongAnswer={addWrong}/>}
     {screen==="progress"&&<ProgressScreen onBack={goHome} stats={stats} wrongCount={wrongIds.length}/>}
-    {screen==="badges"&&<BadgesScreen onBack={goHome} earnedIds={badges}/>}
     {screen==="calc"&&<CalcScreen onBack={goHome}/>}
     {screen==="vocab"&&<VocabScreen onBack={goHome}/>}
-    {screen==="home"&&<HomeScreen onNavigate={nav} stats={stats} dark={dark} setDark={setDark} wrongCount={wrongIds.length} streak={streak} badgeCount={badges.length}/>}
+    {screen==="home"&&<HomeScreen onNavigate={nav} stats={stats} dark={dark} setDark={setDark} wrongCount={wrongIds.length} streak={streak}/>}
   </>
 }
